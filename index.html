@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Supabase Dashboard App</title>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #4f46e5;
+        --primary-hover: #4338ca;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #1e293b;
+        --text-light: #64748b;
+        --border: #e2e8f0;
+        --error: #ef4444;
+        --success: #22c55e;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: "Inter", sans-serif;
+      }
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 480px;
+        background: var(--card-bg);
+        border-radius: 16px;
+        box-shadow:
+          0 4px 20px -2px rgba(0, 0, 0, 0.05),
+          0 2px 6px -1px rgba(0, 0, 0, 0.03);
+        overflow: hidden;
+        border: 1px solid var(--border);
+        transition: all 0.3s ease;
+      }
+      .dashboard-container {
+        max-width: 700px;
+      }
+
+      .header {
+        padding: 32px 32px 24px;
+        text-align: center;
+      }
+      .header h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .header p {
+        font-size: 14px;
+        color: var(--text-light);
+      }
+
+      /* Tabs */
+      .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--border);
+        background: #f8fafc;
+      }
+      .tab-btn {
+        flex: 1;
+        padding: 14px;
+        background: none;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-light);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .tab-btn.active {
+        color: var(--primary);
+        background: var(--card-bg);
+        border-bottom: 2px solid var(--primary);
+      }
+
+      .form-body {
+        padding: 32px;
+      }
+      .input-group {
+        margin-bottom: 20px;
+      }
+      .input-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text);
+      }
+      .input-group input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+      .input-group input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+      }
+
+      .btn {
+        width: 100%;
+        padding: 12px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .btn:hover {
+        background: var(--primary-hover);
+      }
+      .btn.secondary {
+        background: #fee2e2;
+        color: #dc2626;
+        margin-top: 16px;
+      }
+      .btn.secondary:hover {
+        background: #fecaca;
+      }
+
+      .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        margin-bottom: 20px;
+        display: none;
+      }
+      .alert.error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #f87171;
+        display: block;
+      }
+      .alert.success {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #4ade80;
+        display: block;
+      }
+
+      /* Dashboard Styles */
+      .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border);
+        padding: 20px 32px;
+      }
+      .user-info span {
+        font-weight: 600;
+        color: var(--primary);
+      }
+      .dashboard-content {
+        padding: 32px;
+      }
+
+      .note-form {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      .note-form input {
+        flex: 1;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        outline: none;
+      }
+      .note-form button {
+        width: auto;
+        padding: 10px 20px;
+      }
+
+      .notes-list {
+        list-style: none;
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .notes-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        align-items: center;
+      }
+      .notes-item:last-child {
+        border-bottom: none;
+      }
+      .notes-empty {
+        padding: 24px;
+        text-align: center;
+        color: var(--text-light);
+        font-size: 14px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-container" class="container">
+      <!-- AUTH VIEW -->
+      <div id="auth-view">
+        <div class="header">
+          <h1>Welcome Back</h1>
+          <p>Sign in or create an account to continue</p>
+        </div>
+
+        <div class="tabs">
+          <button
+            type="button"
+            class="tab-btn active"
+            id="tab-signin"
+            onclick="switchTab('signin')"
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            id="tab-signup"
+            onclick="switchTab('signup')"
+          >
+            Sign Up
+          </button>
+        </div>
+
+        <div class="form-body">
+          <div id="alert-box" class="alert"></div>
+
+          <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" id="email" placeholder="name@example.com" />
+          </div>
+          <div class="input-group">
+            <label>Password</label>
+            <input
+              type="password"
+              id="password"
+              placeholder="At least 6 characters"
+            />
+          </div>
+
+          <button
+            type="button"
+            id="auth-btn"
+            class="btn"
+            onclick="handleAuth()"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+
+      <!-- DASHBOARD VIEW -->
+      <div id="dashboard-view" class="hidden dashboard-container">
+        <div class="dashboard-header">
+          <div class="user-info">
+            Welcome, <span id="user-email-display"></span>
+          </div>
+          <button
+            type="button"
+            class="btn secondary"
+            style="width: auto; margin: 0; padding: 8px 16px"
+            id="signout-btn"
+          >
+            Sign Out
+          </button>
+        </div>
+        <div class="dashboard-content">
+          <h3 style="font-size: 16px; margin-bottom: 12px">
+            Your Secure Notes Database
+          </h3>
+          <div class="note-form">
+            <input
+              type="text"
+              id="note-input"
+              placeholder="Type a new entry..."
+            />
+            <button type="button" class="btn" id="add-note-btn">
+              Add Note
+            </button>
+          </div>
+          <ul id="notes-list" class="notes-list">
+            <li class="notes-empty">
+              No notes found. Add your first note above!
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div
+        class="dashboard-content"
+        style="margin-top: 20px; border-top: 1px solid var(--border)"
+      >
+        <h3 style="font-size: 16px; margin-bottom: 12px">
+          Upload Post Office Data (Excel)
+        </h3>
+        <p
+          style="font-size: 13px; color: var(--text-light); margin-bottom: 12px"
+        >
+          Make sure your Excel file has two column headers exactly named
+          <strong>Branch Office</strong> and <strong>Sub Office</strong>.
+        </p>
+        <div class="note-form">
+          <input type="file" id="excel-file" accept=".xlsx, .xls" />
+          <button
+            type="button"
+            class="btn"
+            id="upload-excel-btn"
+            onclick="uploadExcel()"
+          >
+            Upload Data
+          </button>
+        </div>
+      </div>
+      <div
+        class="dashboard-content"
+        style="margin-top: 20px; border-top: 1px solid var(--border)"
+      >
+        <h3 style="font-size: 16px; margin-bottom: 12px">
+          Search Post Offices
+        </h3>
+        <div class="note-form">
+        <input type="text" id="search-input" placeholder="Search by branch or sub office name...">
+        <button type="button" class="btn" id="mic-btn" onclick="startVoiceSearch()" style="width: auto; background: #3b82f6;" title="Voice Search">🎤</button>
+        <button type="button" class="btn" id="search-btn" onclick="searchOffices()">Search</button>
+    </div>
+
+        <ul id="search-results-list" class="notes-list">
+          <li class="notes-empty">Search results will appear here.</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      // REPLACE WITH YOUR ACTUAL SUPABASE CREDENTIALS
+      const SUPABASE_URL = "https://nvviolzdujgwkmnrnaww.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "sb_publishable_vwlbAzFCF0zMMqeiPWyu7Q_ruSZ1WwM";
+
+      // Renamed to supabaseClient to prevent naming conflicts with the CDN
+      const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+      );
+
+      let currentMode = "signin";
+
+      // Variable to store our downloaded data
+let cachedPostOffices = [];
+
+// Function to download all data at once
+async function fetchAllPostOffices() {
+    const { data, error } = await supabaseClient.from('post_offices').select('*');
+    if (error) {
+        console.error('Error fetching post offices:', error);
+        return;
+    }
+    cachedPostOffices = data || [];
+    console.log('Post offices cached:', cachedPostOffices.length);
+}
+
+      function switchTab(mode) {
+        currentMode = mode;
+        const signinTab = document.getElementById("tab-signin");
+        const signupTab = document.getElementById("tab-signup");
+        const authBtn = document.getElementById("auth-btn");
+        hideAlert();
+
+        if (mode === "signin") {
+          signinTab.classList.add("active");
+          signupTab.classList.remove("active");
+          authBtn.textContent = "Sign In";
+        } else {
+          signupTab.classList.add("active");
+          signinTab.classList.remove("active");
+          authBtn.textContent = "Create Account";
+        }
+      }
+
+      function showAlert(message, type = "error") {
+        const box = document.getElementById("alert-box");
+        box.className = `alert ${type}`;
+        box.textContent = message;
+      }
+
+      function hideAlert() {
+        const box = document.getElementById("alert-box");
+        box.className = "alert";
+        box.textContent = "";
+      }
+
+      async function handleAuth() {
+        hideAlert();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        if (!email || !password) {
+          showAlert("Please fill in all fields.");
+          return;
+        }
+
+        if (currentMode === "signup") {
+          const { data, error } = await supabaseClient.auth.signUp({
+            email,
+            password,
+          });
+          if (error) {
+            showAlert(error.message);
+          } else {
+            showAlert(
+              "Account created successfully! You can now sign in.",
+              "success",
+            );
+            switchTab("signin");
+          }
+        } else {
+          const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) {
+            showAlert(error.message);
+          } else {
+            checkUserSession();
+          }
+        }
+      }
+
+      async function checkUserSession() {
+        const {
+          data: { session },
+        } = await supabaseClient.auth.getSession();
+        updateUI(session);
+      }
+
+      function updateUI(session) {
+        const authView = document.getElementById("auth-view");
+        const dashboardView = document.getElementById("dashboard-view");
+        const container = document.getElementById("app-container");
+
+        if (session) {
+          authView.classList.add("hidden");
+          dashboardView.classList.remove("hidden");
+          container.classList.add("dashboard-container");
+          document.getElementById("user-email-display").textContent =
+            session.user.email;
+          fetchNotes();
+          fetchAllPostOffices(); // <-- Downloads data on login
+        } else {
+          authView.classList.remove("hidden");
+          dashboardView.classList.add("hidden");
+          container.classList.remove("dashboard-container");
+          cachedPostOffices = []; // <-- Clears data on logout
+        }
+      }
+
+      async function fetchNotes() {
+        const { data, error } = await supabaseClient
+          .from("notes")
+          .select("*")
+          .order("inserted_at", { ascending: false });
+        const list = document.getElementById("notes-list");
+
+        if (error) {
+          console.error("Error fetching notes:", error);
+          return;
+        }
+
+        if (data.length === 0) {
+          list.innerHTML = `<li class="notes-empty">No notes found. Add your first note above!</li>`;
+          return;
+        }
+
+        list.innerHTML = "";
+        data.forEach((note) => {
+          const li = document.createElement("li");
+          li.className = "notes-item";
+          li.textContent = note.content;
+          list.appendChild(li);
+        });
+      }
+
+      async function addNote() {
+        const input = document.getElementById("note-input");
+        const content = input.value.trim();
+        if (!content) return;
+
+        const {
+          data: { session },
+        } = await supabaseClient.auth.getSession();
+        const { error } = await supabaseClient
+          .from("notes")
+          .insert([{ content, user_id: session.user.id }]);
+
+        if (error) {
+          alert(error.message);
+        } else {
+          input.value = "";
+          fetchNotes();
+        }
+      }
+
+      async function uploadExcel() {
+        const fileInput = document.getElementById("excel-file");
+        const file = fileInput.files[0];
+
+        if (!file) {
+          showAlert("Please select an Excel file first.");
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+          try {
+            // Read the Excel file
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: "array" });
+
+            // Get the first sheet
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+
+            // Convert to JSON
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            if (jsonData.length === 0) {
+              showAlert("The Excel file is empty.");
+              return;
+            }
+
+            // Get current user ID
+            const {
+              data: { session },
+            } = await supabaseClient.auth.getSession();
+
+            // Format the data to match our Supabase table columns
+            const formattedData = jsonData.map((row) => ({
+              branch_office: row["Branch Office"],
+              sub_office: row["Sub Office"],
+              user_id: session.user.id,
+            }));
+
+            // Upload to Supabase in a single batch
+            const { error } = await supabaseClient
+              .from("post_offices")
+              .insert(formattedData);
+
+            if (error) {
+              showAlert("Upload Error: " + error.message);
+            } else {
+              showAlert("Post office data uploaded successfully!", "success");
+              fileInput.value = ""; // Clear the file input
+              fetchAllPostOffices(); // <-- Refresh cache after new upload
+            }
+          } catch (err) {
+            console.error(err);
+            showAlert(
+              'Error reading Excel file. Ensure headers are exactly "Branch Office" and "Sub Office".',
+            );
+          }
+        };
+
+        reader.readAsArrayBuffer(file);
+      }
+
+     function searchOffices() {
+    const searchInput = document.getElementById('search-input').value.trim().toLowerCase();
+    const resultsList = document.getElementById('search-results-list');
+    
+    if (!searchInput) {
+        resultsList.innerHTML = `<li class="notes-empty">Please enter a name to search.</li>`;
+        return;
+    }
+
+    // Filter the local array instantly
+    const filteredData = cachedPostOffices.filter(office => {
+        const branch = (office.branch_office || '').toLowerCase();
+        const sub = (office.sub_office || '').toLowerCase();
+        return branch.includes(searchInput) || sub.includes(searchInput);
+    });
+
+    if (filteredData.length === 0) {
+        resultsList.innerHTML = `<li class="notes-empty">No post offices found matching "${searchInput}".</li>`;
+        return;
+    }
+
+    // Display the results
+    resultsList.innerHTML = '';
+    filteredData.forEach(office => {
+        const li = document.createElement('li');
+        li.className = 'notes-item';
+        li.innerHTML = `
+            <div>
+                <strong>Branch:</strong> ${office.branch_office} <br>
+                <span style="font-size: 12px; color: var(--text-light);"><strong>Sub Office:</strong> ${office.sub_office}</span>
+            </div>
+        `;
+        resultsList.appendChild(li);
+    });
+}
+
+      // Event listeners
+      document
+        .getElementById("signout-btn")
+        .addEventListener("click", async () => {
+          await supabaseClient.auth.signOut();
+          checkUserSession();
+        });
+
+      document
+        .getElementById("add-note-btn")
+        .addEventListener("click", addNote);
+
+    // Trigger search when pressing Enter in the search bar
+        document.getElementById('search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevents the page from reloading
+                searchOffices();
+            }
+        });
+
+        // Trigger search instantly as you type
+        document.getElementById('search-input').addEventListener('input', function() {
+            searchOffices();
+        });
+        // Voice Search Function
+function startVoiceSearch() {
+    // Check if the browser supports built-in speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        showAlert("Sorry, your browser doesn't support voice search. Try Chrome, Edge, or Safari.");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN'; // Optimized for Indian English accents
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    const micBtn = document.getElementById('mic-btn');
+    const searchInput = document.getElementById('search-input');
+
+    // When the microphone starts listening
+    recognition.onstart = function() {
+        micBtn.textContent = '🔴'; // Change icon to a red dot
+        searchInput.placeholder = "Listening...";
+        searchInput.value = ""; // Clear old text
+    };
+
+    // When speech is successfully converted to text
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        
+        // Remove trailing periods that some browsers add automatically
+        searchInput.value = transcript.replace(/\.$/, ''); 
+        
+        // Instantly trigger the search from your local cache
+        searchOffices(); 
+    };
+
+    // Handle microphone errors
+    recognition.onerror = function(event) {
+        console.error("Speech recognition error:", event.error);
+        if (event.error === 'not-allowed') {
+            showAlert("Microphone access was denied. Please allow it in your browser settings.");
+        }
+    };
+
+    // When it finishes listening
+    recognition.onend = function() {
+        micBtn.textContent = '🎤'; // Reset the icon
+        searchInput.placeholder = "Search by branch or sub office name...";
+    };
+
+    // Start recording
+    recognition.start();
+}
+
+      // Check active session on load
+      checkUserSession();
+    </script>
+  </body>
+</html>
